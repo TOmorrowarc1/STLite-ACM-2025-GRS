@@ -23,7 +23,9 @@ private:
   //空间扩张。
   void space() {
     T *new_pointer_ = (T *)operator new(sizeof(T) * size_total * 2);
+    //所有权不必转移，资源不应释放，因此不能析构。
     memmove(new_pointer_, pointer_, sizeof(T) * size_total);
+    // pointer_对应空间失去所有者，释放。
     operator delete(pointer_, size_total * sizeof(T));
     pointer_ = new_pointer_;
     size_total = 2 * size_total;
@@ -33,18 +35,24 @@ public:
   class const_iterator;
   class iterator;
 
+  //构造函数：默认，拷贝，移动。
   vector() {
     pointer_ = (T *)operator new(sizeof(T) * 4);
     size_now = 0;
     size_total = 4;
   }
   vector(const vector &other) {
+    //复制资源。
     pointer_ = (T *)operator new(sizeof(T) * other.size_total);
     size_now = other.size_now;
     size_total = other.size_total;
-    memmove(pointer_, other.pointer_, sizeof(T) * size_total);
+    //直接复制有共用所有权导致可能bug的嫌疑，应当利用拷贝构造。
+    for (int i = 0; i < other.size_now; ++i) {
+      new (pointer_ + i) T(other[i]);
+    }
   }
   vector(vector &&other) {
+    //直接接管资源。
     pointer_ = other.pointer_;
     size_now = other.size_now;
     size_total = other.size_total;
@@ -52,6 +60,7 @@ public:
   }
 
   ~vector() {
+    //显式调用析构函数，释放资源。（初始化即分配，有构造等价于有析构）
     for (int i = 0; i < size_now; ++i) {
       pointer_[i].~T();
     }
@@ -69,7 +78,9 @@ public:
     pointer_ = (T *)operator new(sizeof(T) * other.size_total);
     size_now = other.size_now;
     size_total = other.size_total;
-    memmove(pointer_, other.pointer_, sizeof(T) * size_total);
+    for (int i = 0; i < other.size_now; ++i) {
+      new (pointer_ + i) T(other[i]);
+    }
     return *this;
   }
   vector &operator=(vector &&other) {
@@ -336,7 +347,8 @@ public:
     }
     memmove(pointer_ + pos.number_ + 1, pointer_ + pos.number_,
             (size_now - pos.number_ - 1) * sizeof(T));
-    pointer_[pos.number_] = value;
+    //修改元素时面对问题：原有元素并未清理，自动造成所有权共用。
+    new (pointer_ + pos.number_) T(value);
     ++pos.number_;
     return iterator(pointer_, pos.number_ - 1);
   }
@@ -351,7 +363,7 @@ public:
     }
     memmove(pointer_ + ind + 1, pointer_ + ind,
             (size_now - ind - 1) * sizeof(T));
-    pointer_[ind] = value;
+    new (pointer_ + ind) T(value);
     return iterator(pointer_, ind);
   }
 
@@ -363,6 +375,7 @@ public:
     (*pos).~T();
     memmove(pointer_ + pos.number_, pointer_ + pos.number_ + 1,
             (size_now - pos.number_) * sizeof(T));
+    //此时末尾出现了一个不应支配资源但仍可解读的数据，是否会出问题？
     return pos;
   }
 
