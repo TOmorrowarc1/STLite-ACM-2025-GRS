@@ -24,7 +24,7 @@ private:
   void space() {
     T *new_pointer_ = (T *)operator new(sizeof(T) * size_total * 2);
     //所有权不必转移，资源不应释放，因此不能析构。
-    memmove(new_pointer_, pointer_, sizeof(T) * size_total);
+    memcpy(new_pointer_, pointer_, sizeof(T) * size_total);
     // pointer_对应空间失去所有者，释放。
     operator delete(pointer_, size_total * sizeof(T));
     pointer_ = new_pointer_;
@@ -193,74 +193,75 @@ public:
 
   private:
     T *start_;
-    // 0-based
-    int number_;
+    T *content_;
 
   public:
     iterator() {
       start_ = nullptr;
-      number_ = 0;
+      content_ = nullptr;
     }
-    iterator(T *start, int number) : start_(start), number_(number) {}
+
+    iterator(const T &content) : content_(&content) {}
+    iterator(T *start, T *address) : start_(start), content_(address){};
 
     iterator operator+(const int &n) const {
-      return iterator(start_, number_ + n);
+      return iterator(start_, content_ + n);
     }
     iterator operator-(const int &n) const {
-      return iterator(start_, number_ - n);
+      return iterator(start_, content_ - n);
     }
 
     int operator-(const iterator &rhs) const {
       if (start_ != rhs.start_) {
         throw invalid_iterator();
       }
-      return number_ - rhs.number_;
+      return content_ - rhs.content_;
     }
     iterator &operator+=(const int &n) {
-      number_ += n;
+      content_ += n;
       return *this;
     }
     iterator &operator-=(const int &n) {
-      number_ -= n;
+      content_ -= n;
       return *this;
     }
 
     iterator operator++(int) {
       iterator tmp(*this);
-      ++number_;
+      ++content_;
       return tmp;
     }
 
     iterator &operator++() {
-      ++number_;
+      ++content_;
       return *this;
     }
 
     iterator operator--(int) {
       iterator tmp(*this);
-      --number_;
+      --content_;
       return tmp;
     }
 
     iterator &operator--() {
-      --number_;
+      --content_;
       return *this;
     }
 
-    T &operator*() const { return start_[number_]; }
+    T &operator*() const { return *content_; }
 
     bool operator==(const iterator &rhs) const {
-      return start_ == rhs.start_ && number_ == rhs.number_;
+      return start_ == rhs.start_ && content_ == rhs.content_;
     }
     bool operator==(const const_iterator &rhs) const {
-      return start_ == rhs.start_ && number_ == rhs.number_;
+      return start_ == rhs.start_ && content_ == rhs.content_;
     }
 
     bool operator!=(const iterator &rhs) const {
-      return start_ != rhs.start_ || number_ != rhs.number_;
+      return start_ != rhs.start_ || content_ != rhs.content_;
     }
     bool operator!=(const const_iterator &rhs) const {
-      return start_ != rhs.start_ || number_ != rhs.number_;
+      return start_ != rhs.start_ || content_ != rhs.content_;
     }
     friend class vector;
   };
@@ -274,83 +275,84 @@ public:
 
   private:
     T *start_;
-    int number_;
+    T *content_;
 
   public:
-    const_iterator() : start_(nullptr), number_(0) {}
-    const_iterator(T *start, int number) : start_(start), number_(number) {}
+    const_iterator() : start_(nullptr), content_(0) {}
+    const_iterator(T *start, T *content) : start_(start), content_(content) {}
 
     const_iterator operator+(const int &n) const {
-      return const_iterator(start_, number_ + n);
+      return const_iterator(start_, content_ + n);
     }
     const_iterator operator-(const int &n) const {
-      return const_iterator(start_, number_ - n);
+      return const_iterator(start_, content_ - n);
     }
 
     int operator-(const iterator &rhs) const {
       if (start_ != rhs.start_) {
         throw invalid_iterator();
       }
-      return number_ - rhs.number_;
+      return content_ - rhs.content_;
     }
 
     const_iterator operator++(int) {
       const_iterator tmp(*this);
-      ++number_;
+      ++content_;
       return tmp;
     }
 
     const_iterator &operator++() {
-      ++number_;
+      ++content_;
       return *this;
     }
 
     const_iterator operator--(int) {
       const_iterator tmp(*this);
-      --number_;
+      --content_;
       return tmp;
     }
 
     const_iterator &operator--() {
-      --number_;
+      --content_;
       return *this;
     }
 
-    T &operator*() const { return start_[number_]; }
+    T &operator*() const { return *content_; }
 
     bool operator==(const iterator &rhs) const {
-      return start_ == rhs.start_ && number_ == rhs.number_;
+      return start_ == rhs.start_ && content_ == rhs.content_;
     }
     bool operator==(const const_iterator &rhs) const {
-      return start_ == rhs.start_ && number_ == rhs.number_;
+      return start_ == rhs.start_ && content_ == rhs.content_;
     }
 
     bool operator!=(const iterator &rhs) const {
-      return start_ != rhs.start_ || number_ != rhs.number_;
+      return start_ != rhs.start_ || content_ != rhs.content_;
     }
     bool operator!=(const const_iterator &rhs) const {
-      return start_ != rhs.start_ || number_ != rhs.number_;
+      return start_ != rhs.start_ || content_ != rhs.content_;
     }
     friend class vector;
   };
 
-  iterator begin() { return iterator(pointer_, 0); }
-  const_iterator cbegin() const { return const_iterator(pointer_, 0); }
+  iterator begin() { return iterator(pointer_, pointer_); }
+  const_iterator cbegin() const { return const_iterator(pointer_, pointer_); }
 
-  iterator end() { return iterator(pointer_, size_now); }
-  const_iterator cend() const { return const_iterator(pointer_, size_now); }
+  iterator end() { return iterator(pointer_, pointer_ + size_now); }
+  const_iterator cend() const {
+    return const_iterator(pointer_, pointer_ + size_now);
+  }
 
   iterator insert(iterator pos, const T &value) {
     ++size_now;
     if (size_now >= size_total) {
       space();
     }
-    memmove(pointer_ + pos.number_ + 1, pointer_ + pos.number_,
-            (size_now - pos.number_ - 1) * sizeof(T));
-    //修改元素时面对问题：原有元素并未清理，自动造成所有权共用。
-    new (pointer_ + pos.number_) T(value);
-    ++pos.number_;
-    return iterator(pointer_, pos.number_ - 1);
+    memmove(pos.content_ + 1, pos.content_,
+            (pointer_ + size_now - pos.content_ - 1) * sizeof(T));
+    new (pos.content_) T(value);
+    ++pos.content_;
+    return iterator(pointer_, pos.content_ - 1);
   }
 
   iterator insert(const size_t &ind, const T &value) {
@@ -364,7 +366,7 @@ public:
     memmove(pointer_ + ind + 1, pointer_ + ind,
             (size_now - ind - 1) * sizeof(T));
     new (pointer_ + ind) T(value);
-    return iterator(pointer_, ind);
+    return iterator(pointer_, pointer_ + ind);
   }
 
   iterator erase(iterator pos) {
@@ -373,8 +375,8 @@ public:
     }
     --size_now;
     (*pos).~T();
-    memmove(pointer_ + pos.number_, pointer_ + pos.number_ + 1,
-            (size_now - pos.number_) * sizeof(T));
+    memmove(pos.content_, pos.content_ + 1,
+            (pointer_ + size_now - pos.content_) * sizeof(T));
     //此时末尾出现了一个不应支配资源但仍可解读的数据，是否会出问题？
     return pos;
   }
@@ -385,7 +387,7 @@ public:
     }
     (pointer_[ind]).~T();
     memmove(pointer_ + ind, pointer_ + ind + 1, (size_now - ind) * sizeof(T));
-    return iterator(pointer_, ind);
+    return iterator(pointer_, pointer_ + ind);
   }
 };
 
