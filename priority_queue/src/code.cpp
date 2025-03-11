@@ -1,119 +1,261 @@
+// provided by 林伟鸿
+//
 #include <iostream>
-#include <queue>
+#include <map>
 #include <ctime>
+#include <queue>
+#include <cmath>
+#include <vector>
+#include <cstdio>
 #include <cstdlib>
-
+#include <cstring>
+#include <algorithm>
 #include "priority_queue.hpp"
 
-void TestConstructorAndPush()
-{
-	std::cout << "Testing constructors, destructor and push..." << std::endl;
-	sjtu::priority_queue<int> pq;
-	for (int i = 100; i > 0; --i) {
-		pq.push(i);
-	}
-	while (!pq.empty()) {
-		std::cout << pq.top() << " ";
-		pq.pop();
-	}
-	std::cout << std::endl;
-	for (int i = 1000; i > 100; --i) {
-		pq.push(i);
-	}
-	sjtu::priority_queue<int> pqBack(pq);
-	std::cout << pqBack.size() << std::endl;
-	sjtu::priority_queue<int> pqBB;
-	for (int i = 10; i <= 10000; ++i) {
-		pqBB.push(i);
-	}
-	std::cout << pqBB.size() << std::endl;
-	pqBB = pq;
-	std::cout << pqBB.size() << std::endl;
+using namespace std;
+
+int A = 325, B = 2336, last = 233, mod = 1000007;
+
+int Rand(){
+	return last = (A * last + B) % mod;
 }
 
-void TestSize()
-{
-	std::cout << "Testing size()" << std::endl;
-	sjtu::priority_queue<long long> pq;
-	for (int i = 1; i <= 1000; ++i) {
-		pq.push(rand());
+void check1(){//测试push 以及 top访问
+	sjtu::priority_queue<int> Q;
+	for(int i = 1; i <= 5000; i++){
+		int x = Rand();
+		Q.push(x);
+		printf("%d ", Q.top());
 	}
-	std::cout << pq.size() << std::endl;
+	printf("\n");
 }
 
-void TestException()
-{
-	sjtu::priority_queue<int> pq;
-	try {
-		std::cout << pq.top() << std::endl;
-	} catch (...) {
-		std::cout << "Throw correctly." << std::endl;
+void check2(){//测试pop 以及 top访问
+	sjtu::priority_queue<int> Q;
+	for(int i = 1; i <= 5000; i++){
+		int x = Rand();
+		Q.push(x);
 	}
+	printf("%d ", Q.size());
+	while(!Q.empty()){
+		printf("%d", Q.top());
+		Q.pop();
+	}
+	printf("\n");
 }
 
-struct Natural {
-    int x;
+void check3(){//测试push pop 同时操作
+	sjtu::priority_queue<int> Q;
+	int size = 0;
+	for(int i = 1; i <= 6000; i++){
+		if(!size){
+			int x = Rand();
+			Q.push(x);
+			size++;
+		}
+		else{
+			int p = Rand() % 2;
+			if(!p){
+				Q.pop(); size--;
+			}
+			else{
+				int x = Rand();
+				Q.push(x);
+				size++;
+			}
+		}
+		if(size){
+			printf("%d ", Q.top());
+		}
+	}
+	printf("\n");
+}
 
-    Natural(int _x = 0) { x = _x; }
+void check4(){//测试拷贝构造
+	sjtu::priority_queue<int> Q;
+	for(int i = 1; i <= 5000; i++){
+		int x = Rand();
+		Q.push(x);
+	}
+	sjtu::priority_queue<int> Q2(Q);
+	printf("%d ", Q2.size());
+	while(!Q2.empty()){
+		printf("%d ", Q2.top());
+		Q2.pop();
+	}
+	printf("\n");
+}
 
-    friend bool operator<(const Natural &lhs, const Natural &rhs) {
-        if (lhs.x < 0 || rhs.x < 0)
-            throw sjtu::runtime_error();
-        return lhs.x < rhs.x;
-    }
+void check5(){//测试"="
+	sjtu::priority_queue<int> Q;
+	for(int i = 1; i <= 5000; i++){
+		int x = Rand();
+		Q.push(x);
+	}
+	sjtu::priority_queue<int> Q2;
+	Q2 = Q;
+	printf("%d ", Q2.size());
+	while(!Q2.empty()){
+		printf("%d ", Q2.top());
+		Q2.pop();
+	}
+	printf("\n");
+}
+
+bool check6(){//测试堆为空时top是否报错
+	sjtu::priority_queue<int> Q;
+	for(int i = 1; i <= 100; i++) Q.push(Rand());
+	try{
+		while(!Q.empty()){
+			Q.pop();
+		}
+		Q.top();
+	}
+	catch(...){
+		return 1;
+	}
+	return 0;
+}
+
+bool check7(){//测试堆为空时pop是否报错
+	sjtu::priority_queue<int> Q;
+	for(int i = 1; i <= 100; i++) Q.push(Rand());
+	try{
+		while(!Q.empty()){
+			Q.pop();
+		}
+		Q.pop();
+	}
+	catch(...){
+		return 1;
+	}
+	return 0;
+}
+
+//check8用于测试拷贝构造时是否在复制之前new出新的堆，若堆在pop是回收节点内存，那么会出现第二次回收时崩溃
+bool check8(){
+	sjtu::priority_queue<int> Q;
+	for(int i = 1; i <= 30000; i++){
+		Q.push(Rand());
+	}
+	sjtu::priority_queue<int> Q2(Q);
+	while(!Q.empty()){
+		Q.pop();
+	}
+	while(!Q2.empty()){
+		Q2.pop();
+	}
+	return 1;
+}
+
+//check9与check8同理，测试的是"="操作执行是是否new出新节点
+bool check9(){
+	sjtu::priority_queue<int> Q;
+	for(int i = 1; i <= 30000; i++){
+		Q.push(Rand());
+	}
+	sjtu::priority_queue<int> Q2;
+	Q2 = Q;
+	while(!Q.empty()){
+		Q.pop();
+	}
+	while(!Q2.empty()){
+		Q2.pop();
+	}
+	return 1;
+}
+
+struct intnum{
+	int num;
+	intnum(int p = 0) : num(p) {}
+	bool operator <(const intnum &b) const{
+		return num < b.num;
+	}
 };
 
-void TestCompareException() {
-	std::cout << "Testing compare exception...";
-
-	sjtu::priority_queue<Natural> pq;
-    static int dat[2000], ans[2000];
-	int pos = 0;
-    for (int i = 1; i <= 1000; ++i) {
-        dat[i] = i;
-		if (rand() % 10 == 0) 
-			dat[i] = -i;
-		else ans[++pos] = i;
+void check10(){//考察传到自己的类是否能正常工作
+	sjtu::priority_queue<intnum> Q;
+	int size = 0;
+	for(int i = 1; i <= 3000; i++){
+		if(!size){
+			int x = Rand();
+			Q.push(intnum(x));
+			size++;
+		}
+		else{
+			int p = Rand() % 2;
+			if(!p){
+				Q.pop(); size--;
+			}
+			else{
+				int x = Rand();
+				Q.push(intnum(x));
+				size++;
+			}
+		}
+		if(size){
+			printf("%d ", Q.top());
+		}
 	}
-
-    for (int i = 1000; i > 1; --i) {
-        unsigned int x = rand();
-        int p = x % (i - 1) + 1;
-        std::swap(dat[i], dat[p]);
-    }
-
-    while (dat[1] < 0) {
-        unsigned int x = rand();
-        int p = x % 1000 + 1;
-        std::swap(dat[1], dat[p]);
-    }
-
-
-    for (int i = 1; i <= 1000; ++i) {
-        try {
-            pq.push(Natural(dat[i]));
-        } catch (sjtu::runtime_error) {
-            if (dat[i] >= 0)
-                return std::cout << std::endl, void();
-        }
-    }
-
-    for (int i = pos; i; --i) {
-        Natural t = pq.top();
-        if (t.x != ans[i])
-                return std::cout << std::endl, void();
-        pq.pop();
-    }
-
-    std::cout << "ok." << std::endl;
-
+	printf("\n");
 }
 
-int main(int argc, char *const argv[])
-{
-	TestConstructorAndPush();
-	TestSize();
-	TestException();
-    TestCompareException();
+
+
+//check11为CE test 将注释代码进行编译，如果没有CE则通过该测试点
+
+struct node{
+	int num;
+	node(int p) : num(p) {}
+	bool operator <(const node &b) const{
+		return num < b.num;
+	}
+};
+bool check11(){
+	sjtu::priority_queue<node> Q;
+	for(int i = 1; i <= 30000; i++)
+		Q.push(node(Rand()));
+	while(!Q.empty()){
+		Q.top();
+		Q.pop();
+	}
+	return 1;
+}
+
+
+int main(){
+	check1();
+    check2();
+	check3();
+	check4();
+	check5();
+
+	if(check6()) printf("Test  6 Pass!\n");
+	else{
+		printf("Test 6 Fail!\n");
+	}
+
+	if(check7()) printf("Test  7 Pass!\n");
+	else{
+		printf("Test 7 Fail!\n");
+	}
+
+	if(check8()) printf("Test  8 Pass!\n");
+	else{
+		printf("Test 8 Fail!\n");
+	}
+
+	if(check9()) printf("Test  9 Pass!\n");
+	else{
+		printf("Test 9 Fail!\n");
+	}
+
+	check10();
+
+	if(check11()) printf("Test 11 Pass!\n");
+	else{
+		printf("Test 11 Fail!\n");
+	}
+
 	return 0;
 }

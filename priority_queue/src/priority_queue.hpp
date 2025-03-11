@@ -157,7 +157,13 @@ class priority_queue {
         if (rhs == nullptr) {
             return lhs;
         }
-        if (*rhs < *lhs) {
+        bool flag = 0;
+        try {
+            flag = *rhs < *lhs;
+        } catch (sjtu::runtime_error) {
+            return lhs;
+        }
+        if (flag == true) {
             lhs->right_child_ = merge_two(rhs, lhs->right_child_);
             if (lhs->left_child_ == nullptr ||
                 lhs->right_child_->distance_ > lhs->left_child_->distance_) {
@@ -225,7 +231,7 @@ class priority_queue {
      * @brief return the number of elements in the priority queue.
      * @return the number of elements.
      */
-    size_t size() const {
+    int size() const {
         return node_num_;
     }
 
