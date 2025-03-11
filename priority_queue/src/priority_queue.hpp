@@ -56,6 +56,7 @@ class priority_queue {
      * @brief default constructor
      */
     priority_queue() {
+        root_ = nullptr;
         node_num_ = 0;
     }
 
@@ -64,12 +65,20 @@ class priority_queue {
      * @param other the priority_queue to be copied
      */
     Node* copy(Node* des, Node* src) {
-        new (des->content_) T(*src->content_);
-        des->left_child_ = new Node();
-        des->right_child_ = new Node();
-        copy(des->left_child_, src->left_child_);
-        copy(des->right_child_, src->right_child_);
-        des->distance_ = des->right_child_->distance_ + 1;
+        new (des->content_) T(*(src->content_));
+        if (src->left_child_ != nullptr) {
+            des->left_child_ = new Node();
+            copy(des->left_child_, src->left_child_);
+        }
+        if (src->right_child_ != nullptr) {
+            des->right_child_ = new Node();
+            copy(des->right_child_, src->right_child_);
+        }
+        if (des->right_child_ == nullptr) {
+            des->distance_ = 0;
+        } else {
+            des->distance_ = des->right_child_->distance_ + 1;
+        }
         return des;
     }
 
@@ -111,6 +120,7 @@ class priority_queue {
         erase(root_);
         root_ = new Node();
         copy(root_, other.root_);
+        node_num_ = other.node_num_;
         return *this;
     }
 
@@ -120,7 +130,10 @@ class priority_queue {
      * @throws container_is_empty if empty() returns true
      */
     const T& top() const {
-        return *root_->content_;
+        if (node_num_ == 0) {
+            throw container_is_empty();
+        }
+        return *(root_->content_);
     }
 
     /**
@@ -144,19 +157,29 @@ class priority_queue {
         if (rhs == nullptr) {
             return lhs;
         }
-        if (*lhs < *rhs) {
+        if (*rhs < *lhs) {
             lhs->right_child_ = merge_two(rhs, lhs->right_child_);
-            if (lhs->right_child_->distance_ > lhs->left_child_->distance_) {
+            if (lhs->left_child_ == nullptr ||
+                lhs->right_child_->distance_ > lhs->left_child_->distance_) {
                 lhs->swap_child();
             }
-            lhs->distance_ = lhs->right_child_->distance_ + 1;
+            if (lhs->right_child_ == nullptr) {
+                lhs->distance_ = 0;
+            } else {
+                lhs->distance_ = lhs->right_child_->distance_ + 1;
+            }
             return lhs;
         }
         rhs->right_child_ = merge_two(lhs, rhs->right_child_);
-        if (rhs->right_child_->distance_ > rhs->left_child_->distance_) {
+        if (rhs->left_child_ == nullptr ||
+            rhs->right_child_->distance_ > rhs->left_child_->distance_) {
             rhs->swap_child();
         }
-        rhs->distance_ = rhs->right_child_->distance_ + 1;
+        if (rhs->right_child_ == nullptr) {
+            rhs->distance_ = 0;
+        } else {
+            rhs->distance_ = rhs->right_child_->distance_ + 1;
+        }
         return rhs;
     }
 
@@ -173,7 +196,11 @@ class priority_queue {
     void push(const T& e) {
         Node* new_node = new Node();
         new (new_node->content_) T(e);
-        root_ = merge_two(root_, new_node);
+        if (node_num_ == 0) {
+            root_ = new_node;
+        } else {
+            root_ = merge_two(root_, new_node);
+        }
         ++node_num_;
         return;
     }
@@ -190,6 +217,7 @@ class priority_queue {
         root_->content_->~T();
         delete root_;
         root_ = temp;
+        --node_num_;
         return;
     }
 
