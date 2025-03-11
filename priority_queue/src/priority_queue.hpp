@@ -52,18 +52,12 @@ class priority_queue {
     int node_num_;
 
    public:
-    /**
-     * @brief default constructor
-     */
+   
     priority_queue() {
         root_ = nullptr;
         node_num_ = 0;
     }
 
-    /**
-     * @brief copy constructor
-     * @param other the priority_queue to be copied
-     */
     Node* copy(Node* des, Node* src) {
         new (des->content_) T(*(src->content_));
         if (src->left_child_ != nullptr) {
@@ -91,7 +85,6 @@ class priority_queue {
     /*
     erase(node*):a tool to erase the node and its subtree recursivly.
     */
-
     void erase(Node* root) {
         if (root == nullptr) {
             return;
@@ -108,11 +101,6 @@ class priority_queue {
         erase(root_);
     }
 
-    /**
-     * @brief Assignment operator
-     * @param other the priority_queue to be assigned from
-     * @return a reference to this priority_queue after assignment
-     */
     priority_queue& operator=(const priority_queue& other) {
         if (root_ == other.root_) {
             return *this;
@@ -124,11 +112,6 @@ class priority_queue {
         return *this;
     }
 
-    /**
-     * @brief get the top element of the priority queue.
-     * @return a reference of the top element.
-     * @throws container_is_empty if empty() returns true
-     */
     const T& top() const {
         if (node_num_ == 0) {
             throw container_is_empty();
@@ -136,15 +119,8 @@ class priority_queue {
         return *(root_->content_);
     }
 
-    /**
-     * @brief merge another priority_queue into this one.
-     * The other priority_queue will be cleared after merging.
-     * The complexity is at most O(logn).
-     * @param other the priority_queue to be merged.
-     */
-
     /*
-    The merge of two nodes and their subtree,return the root_ of the left_slide
+    The merge of two nodes and their subtree,return the root_ of the subtree
     heap after the operation.
     */
     Node* merge_two(Node* lhs, Node* rhs) {
@@ -192,13 +168,11 @@ class priority_queue {
     void merge(priority_queue& other) {
         root_ = merge_two(root_, other.root_);
         node_num_ += other.node_num_;
+        other.root_ = nullptr;
+        other.node_num_ = 0;
         return;
     }
 
-    /**
-     * @brief push new element to the priority queue.
-     * @param e the element to be pushed
-     */
     void push(const T& e) {
         Node* new_node = new Node();
         new (new_node->content_) T(e);
@@ -211,10 +185,6 @@ class priority_queue {
         return;
     }
 
-    /**
-     * @brief delete the top element from the priority queue.
-     * @throws container_is_empty if empty() returns true
-     */
     void pop() {
         if (node_num_ == 0) {
             throw container_is_empty();
@@ -227,18 +197,10 @@ class priority_queue {
         return;
     }
 
-    /**
-     * @brief return the number of elements in the priority queue.
-     * @return the number of elements.
-     */
     int size() const {
         return node_num_;
     }
 
-    /**
-     * @brief check if the container is empty.
-     * @return true if it is empty, false otherwise.
-     */
     bool empty() const {
         return node_num_ == 0;
     }
