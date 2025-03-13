@@ -6,7 +6,7 @@
 #include <vector>
 #include <cstdio>
 
-#include "vector.hpp"
+#include "vector_ver1.hpp"
 
 void test_construct() {  // vector(const vector &other)
 	sjtu::vector<std::vector<int>> a;
