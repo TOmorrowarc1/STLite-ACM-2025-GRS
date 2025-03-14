@@ -7,8 +7,6 @@
 #include <cstddef>
 #include <cstring>
 #include <strings.h>
-#include <type_traits>
-#include <utility>
 
 constexpr int size_start = 8;
 constexpr int malloc_times = 2;
@@ -24,19 +22,12 @@ private:
   // 1-based
   size_t size_now;
   size_t size_total;
-  bool copy_ = 0;
 
   //空间扩张。
   void space() {
     T *new_pointer_ = (T *)operator new(sizeof(T) * size_total * malloc_times);
     //所有权不必转移，资源不应释放，因此不能析构。
-    if (copy_) {
-      memmove(new_pointer_, pointer_, sizeof(T) * size_total);
-    } else {
-      for (int i = 0; i < size_now; ++i) {
-        new (new_pointer_ + i) T(std::move(pointer_[i]));
-      }
-    }
+    memmove(new_pointer_, pointer_, sizeof(T) * size_total);
     // pointer_对应空间失去所有者，释放。
     operator delete(pointer_, size_total * sizeof(T));
     pointer_ = new_pointer_;
@@ -49,9 +40,6 @@ public:
 
   //构造函数：默认，拷贝，移动。
   vector() {
-    if (std::is_trivially_copyable<T>::value) {
-      copy_ = 1;
-    }
     pointer_ = (T *)operator new(sizeof(T) * size_start);
     size_now = 0;
     size_total = size_start;
@@ -92,14 +80,20 @@ public:
     for (int i = 0; i < size_now; ++i) {
       pointer_[i].~T();
     }
-    operator delete(pointer_, size_total * sizeof(T));
     size_now = other.size_now;
+    if (size_total > size_now) {
+      for (int i = 0; i < size_now; ++i) {
+        new (pointer_ + i) T(other[i]);
+      }
+      return *this;
+    }
+    operator delete(pointer_, size_total * sizeof(T));
     size_total = other.size_total;
     while (size_total / malloc_times > size_now) {
       size_total /= malloc_times;
     }
     pointer_ = (T *)operator new(sizeof(T) * size_total);
-    for (int i = 0; i < other.size_now; ++i) {
+    for (int i = 0; i < size_now; ++i) {
       new (pointer_ + i) T(other[i]);
     }
     return *this;
@@ -359,21 +353,15 @@ public:
 
   iterator insert(iterator pos, const T &value) {
     ++size_now;
+    // space之后iterator会自然失效，隐式的失效是不被允许的。
+    memmove(pos.content_ + 1, pos.content_,
+            (size_now - (pos.content_ - pointer_) - 1) * sizeof(T));
+    new (pos.content_) T(value);
+    int memory = pos.content_ - pointer_;
     if (size_now >= size_total) {
       space();
     }
-    //有区别但我看不出来。
-    if (copy_) {
-      memmove(pos.content_ + 1, pos.content_,
-              (size_now - (pos.content_ - pointer_) - 1) * sizeof(T));
-    } else {
-      for (auto i = pointer_ + size_now; i > pos.content_; --i) {
-        new (i) T(std::move(*(i - 1)));
-      }
-    }
-    new (pos.content_) T(value);
-    ++pos.content_;
-    return iterator(pointer_, pos.content_ - 1);
+    return iterator(pointer_, pointer_ + memory);
   }
 
   iterator insert(const size_t &ind, const T &value) {
@@ -381,18 +369,12 @@ public:
       throw index_out_of_bound();
     }
     ++size_now;
+    memmove(pointer_ + ind + 1, pointer_ + ind,
+            (size_now - ind - 1) * sizeof(T));
+    new (pointer_ + ind) T(value);
     if (size_now >= size_total) {
       space();
     }
-    if (copy_) {
-      memmove(pointer_ + ind + 1, pointer_ + ind,
-              (size_now - ind - 1) * sizeof(T));
-    } else {
-      for (auto i = size_now; i > ind; --i) {
-        new (pointer_ + i) T(std::move(pointer_[i - 1]));
-      }
-    }
-    new (pointer_ + ind) T(value);
     return iterator(pointer_, pointer_ + ind);
   }
 
@@ -401,15 +383,9 @@ public:
       return pos;
     }
     --size_now;
-    pos->~T();
-    if (copy_) {
-      memmove(pos.content_, pos.content_ + 1,
-              (size_now - (pos.content_ - pos.start_)) * sizeof(T));
-    } else {
-      for (auto i = pos.content_; i < pointer_ + size_now; ++i) {
-        new (i) T(std::move(*(i + 1)));
-      }
-    }
+    pos.content_->~T();
+    memmove(pos.content_, pos.content_ + 1,
+            (size_now - (pos.content_ - pos.start_)) * sizeof(T));
     //此时末尾出现了一个不应支配资源但仍可解读的数据，是否会出问题？
     return pos;
   }
@@ -419,13 +395,7 @@ public:
       throw index_out_of_bound();
     }
     (pointer_ + ind)->~T();
-    if (copy_) {
-      memmove(pointer_ + ind, pointer_ + ind + 1, (size_now - ind) * sizeof(T));
-    } else {
-      for (int i = ind; i <= size_now; ++i) {
-        new (pointer_ + i) T(std::move(pointer_[i + 1]));
-      }
-    }
+    memmove(pointer_ + ind, pointer_ + ind + 1, (size_now - ind) * sizeof(T));
     return iterator(pointer_, pointer_ + ind);
   }
 };
