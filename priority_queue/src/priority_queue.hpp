@@ -52,7 +52,6 @@ class priority_queue {
     int node_num_;
 
    public:
-   
     priority_queue() {
         root_ = nullptr;
         node_num_ = 0;
@@ -136,11 +135,17 @@ class priority_queue {
         bool flag = 0;
         try {
             flag = *rhs < *lhs;
-        } catch (sjtu::runtime_error) {
+        } catch (const sjtu::runtime_error& e) {
+            throw sjtu::runtime_error();
             return lhs;
         }
         if (flag == true) {
-            lhs->right_child_ = merge_two(rhs, lhs->right_child_);
+            try {
+                lhs->right_child_ = merge_two(rhs, lhs->right_child_);
+            } catch (sjtu::runtime_error) {
+                throw sjtu::runtime_error();
+                return lhs;
+            }
             if (lhs->left_child_ == nullptr ||
                 lhs->right_child_->distance_ > lhs->left_child_->distance_) {
                 lhs->swap_child();
@@ -152,7 +157,12 @@ class priority_queue {
             }
             return lhs;
         }
-        rhs->right_child_ = merge_two(lhs, rhs->right_child_);
+        try {
+            rhs->right_child_ = merge_two(lhs, rhs->right_child_);
+        } catch (const sjtu::runtime_error& e) {
+            throw sjtu::runtime_error();
+            return lhs;
+        }
         if (rhs->left_child_ == nullptr ||
             rhs->right_child_->distance_ > rhs->left_child_->distance_) {
             rhs->swap_child();
@@ -179,7 +189,13 @@ class priority_queue {
         if (node_num_ == 0) {
             root_ = new_node;
         } else {
-            root_ = merge_two(root_, new_node);
+            try {
+                root_ = merge_two(root_, new_node);
+            } catch (const sjtu::runtime_error& e) {
+                new_node->content_->~T();
+                delete new_node;
+                throw sjtu::runtime_error();
+            }
         }
         ++node_num_;
         return;
