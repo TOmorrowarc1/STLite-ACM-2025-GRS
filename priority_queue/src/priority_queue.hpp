@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <new>
 
 #include "exceptions.hpp"
@@ -21,19 +22,26 @@ class priority_queue {
     struct Node {
         Node* left_child_;
         Node* right_child_;
-        T* content_;
+        std::unique_ptr<T> content_;
         int distance_;
 
         Node() {
             left_child_ = nullptr;
             right_child_ = nullptr;
-            content_ = (T*)operator new(sizeof(T));
+            content_ = nullptr;
+            distance_ = 0;
+        }
+
+        Node(const T& content) {
+            left_child_ = nullptr;
+            right_child_ = nullptr;
+            content_.reset(new T(content));
             distance_ = 0;
         }
 
         ~Node() {
             left_child_ = right_child_ = nullptr;
-            operator delete(content_, sizeof(T));
+            content_ = nullptr;
         }
 
         bool operator<(const Node& rhs) {
@@ -57,15 +65,13 @@ class priority_queue {
         node_num_ = 0;
     }
 
-    Node* copy(Node* des, Node* src) {
-        new (des->content_) T(*(src->content_));
+    Node* copy(Node* src) {
+        Node* des = new Node(*(src->content_));
         if (src->left_child_ != nullptr) {
-            des->left_child_ = new Node();
-            copy(des->left_child_, src->left_child_);
+            des->left_child_ = copy(src->left_child_);
         }
         if (src->right_child_ != nullptr) {
-            des->right_child_ = new Node();
-            copy(des->right_child_, src->right_child_);
+            des->right_child_ = copy(src->right_child_);
         }
         if (des->right_child_ == nullptr) {
             des->distance_ = 0;
@@ -76,8 +82,7 @@ class priority_queue {
     }
 
     priority_queue(const priority_queue& other) {
-        root_ = new Node();
-        copy(root_, other.root_);
+        root_ = copy(other.root_);
         node_num_ = other.node_num_;
     }
 
@@ -91,7 +96,6 @@ class priority_queue {
         --node_num_;
         erase(root->left_child_);
         erase(root->right_child_);
-        root->content_->~T();
         delete root;
         return;
     }
@@ -105,8 +109,7 @@ class priority_queue {
             return *this;
         }
         erase(root_);
-        root_ = new Node();
-        copy(root_, other.root_);
+        root_ = copy(other.root_);
         node_num_ = other.node_num_;
         return *this;
     }
@@ -184,8 +187,7 @@ class priority_queue {
     }
 
     void push(const T& e) {
-        Node* new_node = new Node();
-        new (new_node->content_) T(e);
+        Node* new_node = new Node(e);
         if (node_num_ == 0) {
             root_ = new_node;
         } else {
@@ -206,7 +208,6 @@ class priority_queue {
             throw container_is_empty();
         }
         Node* temp = merge_two(root_->left_child_, root_->right_child_);
-        root_->content_->~T();
         delete root_;
         root_ = temp;
         --node_num_;
