@@ -30,7 +30,6 @@ public:
 };
 
 const int test_num = 100000;
-
 void tester(void) {
   //	test: constructor
   sjtu::map<Integer, std::string, Compare> map;
@@ -54,6 +53,7 @@ void tester(void) {
       assert(result.second);
     }
   }
+  map.traver0();
   //	test: count(), find(), erase()
   for (int i = 0; i < test_num; ++i) {
     if (i > 1896 && i <= 2016) {
@@ -61,6 +61,9 @@ void tester(void) {
     }
     assert(map.count(Integer(i)) == 1);
     assert(map.find(Integer(i)) != map.end());
+    if (i == 2017) {
+      int k = 0;
+    }
     map.erase(map.find(Integer(i)));
   }
   //	test: constructor, operator=, clear();
