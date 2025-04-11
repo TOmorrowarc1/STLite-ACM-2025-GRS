@@ -10,7 +10,6 @@
 #include <cstddef>
 #include <exception>
 #include <functional>
-#include <iostream>
 #include <strings.h>
 
 namespace sjtu {
@@ -103,90 +102,32 @@ private:
       return parent_after;
     }
 
-    void swap(Node *high, Node *low) {
-      Node *temp;
-      bool temp_color = high->color_;
-      high->color_ = temp->color_;
-      low->color_ = temp_color;
-      if (high->left_child_ == low) {
-        low->parent_ = high->parent_;
-        high->parent_ = low;
-        high->left_child_ = low->left_child_;
-        low->left_child_ = high;
-        temp = high->right_child_;
-        high->right_child_ = low->right_child_;
-        low->right_child_ = temp;
-        if (low->parent_ != nullptr) {
-          if (low->parent_->left_child_ == high) {
-            low->parent_->left_child_ = low;
-          } else {
-            low->parent_->right_child_ = low;
-          }
-        }
-        if (low->right_child_ != nullptr) {
-          low->right_child_->parent_ = low;
-        }
-        if (high->left_child_ != nullptr) {
-          high->left_child_->parent_ = high;
-        }
-      } else if (high->right_child_ == low) {
-        low->parent_ = high->parent_;
-        high->parent_ = low;
-        high->right_child_ = low->right_child_;
-        low->right_child_ = high;
-        temp = high->left_child_;
-        high->right_child_ = low->left_child_;
-        low->left_child_ = temp;
-        if (low->parent_ != nullptr) {
-          if (low->parent_->left_child_ == high) {
-            low->parent_->left_child_ = low;
-          } else {
-            low->parent_->right_child_ = low;
-          }
-        }
-        if (low->right_child_ != nullptr) {
-          low->right_child_->parent_ = low;
-        }
-        if (high->left_child_ != nullptr) {
-          high->left_child_->parent_ = high;
-        }
-      } else {
-        temp = high->parent_;
-        high->parent_ = low->parent_;
-        low->parent_ = high->parent_;
-        temp = high->left_child_;
-        high->left_child_ = low->left_child_;
-        low->left_child_ = temp;
-        temp = high->right_child_;
-        high->right_child_ = low->right_child_;
-        low->right_child_ = temp;
-        if (low->parent_ != nullptr) {
-          if (low->parent_->left_child_ == high) {
-            low->parent_->left_child_ = low;
-          } else {
-            low->parent_->right_child_ = low;
-          }
-        }
-        if (high->parent_ != nullptr) {
-          if (high->parent_->left_child_ == low) {
-            high->parent_->left_child_ = high;
-          } else {
-            high->parent_->right_child_ = high;
-          }
-        }
-        if (low->right_child_ != nullptr) {
-          low->right_child_->parent_ = low;
-        }
-        if (high->right_child_ != nullptr) {
-          high->right_child_->parent_ = high;
-        }
-        if (low->left_child_ != nullptr) {
-          low->left_child_->parent_ = low;
-        }
-        if (high->left_child_ != nullptr) {
-          high->left_child_->parent_ = high;
+    void exchange_with_empty(Node *target, Node *empty) {
+      empty->parent_ = target->parent_;
+      empty->left_child_ = target->left_child_;
+      empty->right_child_ = target->right_child_;
+      if (empty->parent_ != nullptr) {
+        if (target->parent_->left_child_ == target) {
+          target->parent_->left_child_ = empty;
+        } else {
+          target->parent_->right_child_ = empty;
         }
       }
+      if (empty->left_child_ != nullptr) {
+        empty->left_child_->parent_ = empty;
+      }
+      if (empty->right_child_ != nullptr) {
+        empty->right_child_->parent_ = empty;
+      }
+    }
+
+    void swap(Node *high, Node *low, Node *sentinar) {
+      bool temp_color = high->color_;
+      high->color_ = low->color_;
+      low->color_ = temp_color;
+      exchange_with_empty(high, sentinar);
+      exchange_with_empty(low, high);
+      exchange_with_empty(sentinar, low);
     }
 
     friend class map;
@@ -194,11 +135,14 @@ private:
 
   Node *root_;
   Node *sentinar_ = new Node();
+  Node *min_node;
+  Node *max_node;
   int nodes_num_;
 
 public:
   map() {
     root_ = nullptr;
+    max_node = min_node = nullptr;
     nodes_num_ = 0;
   }
 
@@ -222,6 +166,8 @@ public:
     root_ = nullptr;
     if (other.nodes_num_ != 0) {
       root_ = copy(root_, other.root_);
+      max_node = getmax();
+      min_node = getmin();
     }
   }
 
@@ -243,6 +189,7 @@ public:
       erase(root_);
     }
     root_ = nullptr;
+    max_node = min_node = sentinar_;
     nodes_num_ = 0;
   }
 
@@ -260,6 +207,8 @@ public:
     root_ = nullptr;
     nodes_num_ = other.nodes_num_;
     root_ = copy(root_, other.root_);
+    max_node = getmax();
+    min_node = getmin();
     return *this;
   }
 
@@ -271,9 +220,6 @@ public:
    * `index_out_of_bound'
    */
   Node *search(const Key &key) const {
-    if (root_ == nullptr) {
-      return nullptr;
-    }
     Node *target = root_;
     Node *parent = nullptr;
     while (target != nullptr) {
@@ -284,20 +230,21 @@ public:
       if (Compare{}(key, target->content_->first)) {
         parent = target;
         target = target->left_child_;
-        continue;
       } else {
         parent = target;
         target = target->right_child_;
-        continue;
       }
     }
     return parent;
   }
 
   T &at(const Key &key) {
+    if (root_ == nullptr) {
+      throw index_out_of_bound();
+    }
     Node *place = search(key);
-    if (place != nullptr && !(Compare{}(place->content_->first, key) ||
-                              Compare{}(key, place->content_->first))) {
+    if (!Compare{}(place->content_->first, key) &&
+        !Compare{}(key, place->content_->first)) {
       return place->content_->second;
     }
     throw index_out_of_bound();
@@ -305,9 +252,12 @@ public:
   }
 
   const T &at(const Key &key) const {
+    if (root_ == nullptr) {
+      throw index_out_of_bound();
+    }
     Node *place = search(key);
-    if (place != nullptr && !(Compare{}(place->content_->first, key) ||
-                              Compare{}(key, place->content_->first))) {
+    if (!Compare{}(place->content_->first, key) &&
+        !Compare{}(key, place->content_->first)) {
       return place->content_->second;
     }
     throw index_out_of_bound();
@@ -324,10 +274,7 @@ public:
     Node *parent = nullptr;
     Node *grandparent = nullptr;
     Node *uncle = nullptr;
-    while (target != root_) {
-      if (target->parent_->color_ == black) {
-        break;
-      }
+    while (target != root_ && target->parent_->color_ != black) {
       /*If the parent is red, the grandparent(if existed) must black and
       there will be two cases for analysis:
         1. The uncle is black, which is equivlant to the target is inserted in a
@@ -367,7 +314,6 @@ public:
           grandparent->color_ = red;
           parent->left_rotation(grandparent, parent);
         }
-        break;
       }
     }
     while (root_->parent_ != nullptr) {
@@ -377,13 +323,14 @@ public:
   }
 
   T &operator[](const Key &key) {
-    Node *place = search(key);
-    if (place == nullptr) {
+    if (root_ == nullptr) {
       ++nodes_num_;
       value_type blank(key, T());
       root_ = new Node(blank);
+      min_node = max_node = root_;
       return root_->content_->second;
     }
+    Node *place = search(key);
     if (!(Compare{}(place->content_->first, key) ||
           Compare{}(key, place->content_->first))) {
       return place->content_->second;
@@ -391,16 +338,20 @@ public:
     ++nodes_num_;
     value_type blank(key, T());
     Node *target = new Node(blank);
+    target->color_ = red;
+    target->parent_ = place;
     if (Compare{}(key, place->content_->first)) {
-      target->color_ = red;
-      target->parent_ = place;
       place->left_child_ = target;
     } else {
-      target->color_ = red;
-      target->parent_ = place;
       place->right_child_ = target;
     }
     insert_maintain(target);
+    if (Compare{}(key, min_node->content_->first)) {
+      min_node = target;
+    }
+    if (Compare{}(max_node->content_->first, key)) {
+      max_node = target;
+    }
     return target->content_->second;
   }
 
@@ -427,7 +378,7 @@ public:
   }
 
   Node *predecessor(const Node *base) const {
-    Node *target = const_cast<Node *>(base);
+    Node *target = (Node *)(base);
     if (target->left_child_ != nullptr) {
       target = target->left_child_;
       while (target->right_child_ != nullptr) {
@@ -435,17 +386,14 @@ public:
       }
       return target;
     }
-    while (target != root_) {
-      if (target->parent_->right_child_ == target) {
-        return target->parent_;
-      }
+    while (target != root_ && target->parent_->left_child_ == target) {
       target = target->parent_;
     }
-    return nullptr;
+    return target->parent_;
   }
 
   Node *successor(const Node *base) const {
-    Node *target = const_cast<Node *>(base);
+    Node *target = (Node *)(base);
     if (target->right_child_ != nullptr) {
       target = target->right_child_;
       while (target->left_child_ != nullptr) {
@@ -453,13 +401,10 @@ public:
       }
       return target;
     }
-    while (target != root_) {
-      if (target->parent_->left_child_ == target) {
-        return target->parent_;
-      }
+    while (target != root_ && target->parent_->right_child_ == target) {
       target = target->parent_;
     }
-    return nullptr;
+    return target->parent_;
   }
 
   /**
@@ -470,55 +415,12 @@ public:
    * The default method of check the equivalence is !(a < b || b > a)
    */
   size_t count(const Key &key) const {
+    if (root_ == nullptr) {
+      return 0;
+    }
     Node *place = search(key);
-    if (place == nullptr) {
-      return 0;
-    }
-    return !(Compare{}(place->content_->first, key) ||
-             Compare{}(key, place->content_->first));
-  }
-
-  void traverse(Node *root) {
-    if (root == nullptr) {
-      return;
-    }
-    traverse(root->left_child_);
-    std::cout << root->content_->second << '\n';
-    traverse(root->right_child_);
-  }
-
-  bool traver0() {
-    // traverse(root_);
-    int c = 0;
-    if (!checkblack(root_, c, 0)) {
-      return 0;
-    }
-    return 1;
-  }
-
-  bool checkblack(Node *root, int &standard, int now) {
-    if (root == nullptr) {
-      if (standard == 0) {
-        standard = now;
-      } else {
-        if (standard != now) {
-          return 0;
-        }
-      }
-      return 1;
-    }
-    bool left = 0, right = 0;
-    if (root->left_child_ == nullptr || root->left_child_->color_ == red) {
-      left = checkblack(root->left_child_, standard, now);
-    } else {
-      left = checkblack(root->left_child_, standard, now + 1);
-    }
-    if (root->right_child_ == nullptr || root->right_child_->color_ == red) {
-      right = checkblack(root->right_child_, standard, now);
-    } else {
-      right = checkblack(root->right_child_, standard, now + 1);
-    }
-    return left & right;
+    return !Compare{}(place->content_->first, key) &&
+           !Compare{}(key, place->content_->first);
   }
 
   class iterator {
@@ -546,62 +448,56 @@ public:
       if (at_ == nullptr || at_ == it_->sentinar_) {
         throw invalid_iterator();
       }
-      if (at_ == it_->getmax()) {
+      if (at_ == it_->max_node) {
         at_ = it_->sentinar_;
-      } else {
-        at_ = it_->successor(at_);
+        return temp;
       }
+      at_ = it_->successor(at_);
       return temp;
     }
     iterator &operator++() {
       if (at_ == nullptr || at_ == it_->sentinar_) {
         throw invalid_iterator();
       }
-      if (at_ == it_->getmax()) {
+      if (at_ == it_->max_node) {
         at_ = it_->sentinar_;
-      } else {
-        at_ = it_->successor(at_);
+        return *this;
       }
+      at_ = it_->successor(at_);
       return *this;
     }
     iterator operator--(int) {
       iterator temp(*this);
-      if (at_ == nullptr || at_ == it_->getmin()) {
+      if (at_ == nullptr || at_ == it_->min_node) {
         throw invalid_iterator();
       }
       if (at_ == it_->sentinar_) {
-        at_ = it_->getmax();
-      } else {
-        at_ = it_->predecessor(at_);
+        at_ = it_->max_node;
+        return temp;
       }
+      at_ = it_->predecessor(at_);
       return temp;
     }
     iterator &operator--() {
-      if (at_ == nullptr || at_ == it_->getmin()) {
+      if (at_ == nullptr || at_ == it_->min_node) {
         throw invalid_iterator();
       }
       if (at_ == it_->sentinar_) {
-        at_ = it_->getmax();
-      } else {
-        at_ = it_->predecessor(at_);
+        at_ = it_->max_node;
+        return *this;
       }
+      at_ = it_->predecessor(at_);
       return *this;
     }
 
     value_type &operator*() const { return *(at_->content_); }
     value_type *operator->() const noexcept { return at_->content_; }
 
-    bool operator==(const iterator &rhs) const {
-      return it_ == rhs.it_ && at_ == rhs.at_;
-    }
-    bool operator==(const const_iterator &rhs) const {
-      return it_ == rhs.it_ && at_ == rhs.at_;
-    }
-    bool operator!=(const iterator &rhs) const {
-      return !(it_ == rhs.it_ && at_ == rhs.at_);
-    }
+    bool operator==(const iterator &rhs) const { return at_ == rhs.at_; }
+    bool operator==(const const_iterator &rhs) const { return at_ == rhs.at_; }
+    bool operator!=(const iterator &rhs) const { return !(at_ == rhs.at_); }
     bool operator!=(const const_iterator &rhs) const {
-      return !(it_ == rhs.it_ && at_ == rhs.at_);
+      return !(at_ == rhs.at_);
     }
   };
 
@@ -634,67 +530,61 @@ public:
       if (at_ == nullptr || at_ == it_->sentinar_) {
         throw invalid_iterator();
       }
-      if (at_ == it_->getmax()) {
+      if (at_ == it_->max_node) {
         at_ = it_->sentinar_;
-      } else {
-        at_ = it_->successor(at_);
+        return temp;
       }
+      at_ = it_->successor(at_);
       return temp;
     }
     const_iterator &operator++() {
       if (at_ == nullptr || at_ == it_->sentinar_) {
         throw invalid_iterator();
       }
-      if (at_ == it_->getmax()) {
+      if (at_ == it_->max_node) {
         at_ = it_->sentinar_;
-      } else {
-        at_ = it_->successor(at_);
+        return *this;
       }
+      at_ = it_->successor(at_);
       return *this;
     }
     const_iterator operator--(int) {
       const_iterator temp(*this);
-      if (at_ == nullptr || at_ == it_->getmin()) {
+      if (at_ == nullptr || at_ == it_->min_node) {
         throw invalid_iterator();
       }
       if (at_ == it_->sentinar_) {
-        at_ = it_->getmax();
-      } else {
-        at_ = it_->predecessor(at_);
+        at_ = it_->max_node;
+        return temp;
       }
+      at_ = it_->predecessor(at_);
       return temp;
     }
     const_iterator &operator--() {
-      if (at_ == nullptr || at_ == it_->getmin()) {
+      if (at_ == nullptr || at_ == it_->min_node) {
         throw invalid_iterator();
       }
       if (at_ == it_->sentinar_) {
-        at_ = it_->getmax();
-      } else {
-        at_ = it_->predecessor(at_);
+        at_ = it_->max_node;
+        return *this;
       }
+      at_ = it_->predecessor(at_);
       return *this;
     }
 
     value_type &operator*() const { return *(at_->content_); }
     value_type *operator->() const noexcept { return at_->content_; }
 
-    bool operator==(const iterator &rhs) const {
-      return it_ == rhs.it_ && at_ == rhs.at_;
-    }
-    bool operator==(const const_iterator &rhs) const {
-      return it_ == rhs.it_ && at_ == rhs.at_;
-    }
-    bool operator!=(const iterator &rhs) const {
-      return !(it_ == rhs.it_ && at_ == rhs.at_);
-    }
+    bool operator==(const iterator &rhs) const { return at_ == rhs.at_; }
+    bool operator==(const const_iterator &rhs) const { return at_ == rhs.at_; }
+    bool operator!=(const iterator &rhs) const { return !(at_ == rhs.at_); }
     bool operator!=(const const_iterator &rhs) const {
-      return !(it_ == rhs.it_ && at_ == rhs.at_);
+      return !(at_ == rhs.at_);
     }
   };
 
-  iterator begin() { return iterator(this, getmin()); }
-  const_iterator cbegin() const { return const_iterator(this, getmin()); }
+  iterator begin() { return iterator(this, min_node); }
+  const_iterator cbegin() const { return const_iterator(this, min_node); }
   /**
    * return a iterator to the end
    * in fact, it returns past-the-end.
@@ -710,17 +600,23 @@ public:
    * returned.
    */
   iterator find(const Key &key) {
+    if (root_ == nullptr) {
+      return end();
+    }
     Node *target = search(key);
-    if (target == nullptr || (Compare{}(target->content_->first, key) ||
-                              Compare{}(key, target->content_->first))) {
+    if (Compare{}(target->content_->first, key) ||
+        Compare{}(key, target->content_->first)) {
       return end();
     }
     return iterator(this, target);
   }
   const_iterator find(const Key &key) const {
+    if (root_ == nullptr) {
+      return cend();
+    }
     Node *target = search(key);
-    if (target == nullptr || (Compare{}(target->content_->first, key) ||
-                              Compare{}(key, target->content_->first))) {
+    if (Compare{}(target->content_->first, key) ||
+        Compare{}(key, target->content_->first)) {
       return cend();
     }
     return const_iterator(this, target);
@@ -733,29 +629,34 @@ public:
    * insertion), the second one is red if insert successfully, or black.
    */
   pair<iterator, bool> insert(const value_type &value) {
-    Node *place = search(value.first);
-    if (place == nullptr) {
+    if (root_ == nullptr) {
       ++nodes_num_;
       root_ = new Node(value);
-      return pair<iterator, bool>(iterator(this, root_), 1);
+      min_node = max_node = root_;
+      return pair<iterator, bool>(iterator(this, root_), true);
     }
+    Node *place = search(value.first);
     if (!(Compare{}(place->content_->first, value.first) ||
           Compare{}(value.first, place->content_->first))) {
-      return pair<iterator, bool>(iterator(this, place), 0);
+      return pair<iterator, bool>(iterator(this, place), false);
     }
     ++nodes_num_;
     Node *target = new Node(value);
+    target->color_ = red;
+    target->parent_ = place;
     if (Compare{}(value.first, place->content_->first)) {
-      target->color_ = red;
-      target->parent_ = place;
       place->left_child_ = target;
     } else {
-      target->color_ = red;
-      target->parent_ = place;
       place->right_child_ = target;
     }
     insert_maintain(target);
-    return pair<iterator, bool>(iterator(this, target), 1);
+    if (Compare{}(value.first, min_node->content_->first)) {
+      min_node = target;
+    }
+    if (Compare{}(max_node->content_->first, value.first)) {
+      max_node = target;
+    }
+    return pair<iterator, bool>(iterator(this, target), true);
   }
 
   void erase_maintain(Node *target) {
@@ -865,6 +766,7 @@ public:
       root_ = nullptr;
       pos.at_ = nullptr;
       nodes_num_ = 0;
+      max_node = min_node = sentinar_;
       return;
     }
     /*
@@ -875,17 +777,23 @@ public:
     Node *target = pos.at_;
     if (pos.at_->left_child_ != nullptr) {
       target = predecessor(pos.at_);
-      target->swap(pos.at_, target);
+      target->swap(pos.at_, target, sentinar_);
+      while (root_->parent_ != nullptr) {
+        root_ = root_->parent_;
+      }
       target = pos.at_;
       if (target->left_child_ != nullptr) {
-        target->swap(target, target->left_child_);
+        target->swap(target, target->left_child_, sentinar_);
       }
     } else if (pos.at_->right_child_ != nullptr) {
       target = successor(pos.at_);
-      target->swap(pos.at_, target);
+      target->swap(pos.at_, target, sentinar_);
+      while (root_->parent_ != nullptr) {
+        root_ = root_->parent_;
+      }
       target = pos.at_;
       if (target->right_child_ != nullptr) {
-        target->swap(target, target->right_child_);
+        target->swap(target, target->right_child_, sentinar_);
       }
     }
     erase_maintain(target);
@@ -895,6 +803,12 @@ public:
       target->parent_->right_child_ = nullptr;
     }
     --nodes_num_;
+    if (target == max_node) {
+      max_node = getmax();
+    }
+    if (target == min_node) {
+      min_node = getmin();
+    }
     delete target;
     pos.at_ = nullptr;
     return;
