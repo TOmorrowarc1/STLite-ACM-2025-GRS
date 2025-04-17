@@ -3,7 +3,6 @@
 
 #include <cstddef>
 #include <functional>
-#include <memory>
 #include <new>
 
 #include "exceptions.hpp"
@@ -22,7 +21,7 @@ class priority_queue {
     struct Node {
         Node* left_child_;
         Node* right_child_;
-        std::unique_ptr<T> content_;
+        T* content_;
         int distance_;
 
         Node() {
@@ -35,13 +34,13 @@ class priority_queue {
         Node(const T& content) {
             left_child_ = nullptr;
             right_child_ = nullptr;
-            content_.reset(new T(content));
+            content_ = new T(content);
             distance_ = 0;
         }
 
         ~Node() {
             left_child_ = right_child_ = nullptr;
-            content_ = nullptr;
+            delete content_;
         }
 
         bool operator<(const Node& rhs) {
