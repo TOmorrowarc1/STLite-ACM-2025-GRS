@@ -22,8 +22,8 @@ public:
    * You can use sjtu::map as value_type by typedef.
    */
   typedef pair<const Key, T> value_type;
-  const bool red = 1;
-  const bool black = 0;
+  const bool RED = 1;
+  const bool BLACK = 0;
   /**
    * see BidirectionalIterator at CppReference for help.
    *
@@ -60,7 +60,7 @@ private:
     }
 
     /*For a parent and its right_child, rotate and exchange them.*/
-    Node *left_rotation(Node *parent_before, Node *parent_after) {
+    Node *leftRotation(Node *parent_before, Node *parent_after) {
       if (parent_after == nullptr) {
         throw std::exception();
       }
@@ -81,7 +81,7 @@ private:
       return parent_after;
     }
 
-    Node *right_rotation(Node *parent_before, Node *parent_after) {
+    Node *rightRotation(Node *parent_before, Node *parent_after) {
       if (parent_after == nullptr) {
         throw std::exception();
       }
@@ -102,7 +102,7 @@ private:
       return parent_after;
     }
 
-    void exchange_with_empty(Node *target, Node *empty) {
+    void exchangeWithEmpty(Node *target, Node *empty) {
       empty->parent_ = target->parent_;
       empty->left_child_ = target->left_child_;
       empty->right_child_ = target->right_child_;
@@ -125,9 +125,9 @@ private:
       bool temp_color = high->color_;
       high->color_ = low->color_;
       low->color_ = temp_color;
-      exchange_with_empty(high, sentinar);
-      exchange_with_empty(low, high);
-      exchange_with_empty(sentinar, low);
+      exchangeWithEmpty(high, sentinar); // function Capitialize
+      exchangeWithEmpty(low, high);
+      exchangeWithEmpty(sentinar, low);
     }
 
     friend class map;
@@ -270,17 +270,17 @@ public:
   Returns a reference to the value that is mapped to a key equivalent to key,
   performing an insertion if such key does not already exist.
   */
-  void insert_maintain(Node *target) {
+  void insertMaintain(Node *target) {
     Node *parent = nullptr;
     Node *grandparent = nullptr;
     Node *uncle = nullptr;
-    while (target != root_ && target->parent_->color_ != black) {
-      /*If the parent is red, the grandparent(if existed) must black and
+    while (target != root_ && target->parent_->color_ != BLACK) {
+      /*If the parent is RED, the grandparent(if existed) must BLACK and
       there will be two cases for analysis:
-        1. The uncle is black, which is equivlant to the target is inserted in a
+        1. The uncle is BLACK, which is equivlant to the target is inserted in a
       2-item B-Tree node, resulting in rotations and repainting to make a 3-item
       B-Tree Node.
-        2. The uncle is red, which means that the target inserting in a 3-item
+        2. The uncle is RED, which means that the target inserting in a 3-item
       full B-Tree node, resulting in repainting equals to a split.*/
       parent = target->parent_;
       grandparent = parent->parent_;
@@ -289,37 +289,37 @@ public:
       } else {
         uncle = grandparent->left_child_;
       }
-      if (uncle != nullptr && uncle->color_ == red) {
-        parent->color_ = black;
-        uncle->color_ = black;
-        grandparent->color_ = red;
+      if (uncle != nullptr && uncle->color_ == RED) {
+        parent->color_ = BLACK;
+        uncle->color_ = BLACK;
+        grandparent->color_ = RED;
         target = grandparent;
       } else {
         if (grandparent->left_child_ == parent) {
           if (parent->right_child_ == target) {
             Node *temp = parent;
-            parent = target->left_rotation(parent, target);
+            parent = target->leftRotation(parent, target);
             target = temp;
           }
-          parent->color_ = black;
-          grandparent->color_ = red;
-          parent->right_rotation(grandparent, parent);
+          parent->color_ = BLACK;
+          grandparent->color_ = RED;
+          parent->rightRotation(grandparent, parent);
         } else {
           if (parent->left_child_ == target) {
             Node *temp = parent;
-            parent = target->right_rotation(parent, target);
+            parent = target->rightRotation(parent, target);
             target = temp;
           }
-          parent->color_ = black;
-          grandparent->color_ = red;
-          parent->left_rotation(grandparent, parent);
+          parent->color_ = BLACK;
+          grandparent->color_ = RED;
+          parent->leftRotation(grandparent, parent);
         }
       }
     }
     while (root_->parent_ != nullptr) {
       root_ = root_->parent_;
     }
-    root_->color_ = black;
+    root_->color_ = BLACK;
   }
 
   T &operator[](const Key &key) {
@@ -338,14 +338,14 @@ public:
     ++nodes_num_;
     value_type blank(key, T());
     Node *target = new Node(blank);
-    target->color_ = red;
+    target->color_ = RED;
     target->parent_ = place;
     if (Compare{}(key, place->content_->first)) {
       place->left_child_ = target;
     } else {
       place->right_child_ = target;
     }
-    insert_maintain(target);
+    insertMaintain(target);
     if (Compare{}(key, min_node->content_->first)) {
       min_node = target;
     }
@@ -626,7 +626,7 @@ public:
    * insert an element.
    * return a pair, the first of the pair is
    *   the iterator to the new element (or the element that prevented the
-   * insertion), the second one is red if insert successfully, or black.
+   * insertion), the second one is RED if insert successfully, or BLACK.
    */
   pair<iterator, bool> insert(const value_type &value) {
     if (root_ == nullptr) {
@@ -642,14 +642,14 @@ public:
     }
     ++nodes_num_;
     Node *target = new Node(value);
-    target->color_ = red;
+    target->color_ = RED;
     target->parent_ = place;
     if (Compare{}(value.first, place->content_->first)) {
       place->left_child_ = target;
     } else {
       place->right_child_ = target;
     }
-    insert_maintain(target);
+    insertMaintain(target);
     if (Compare{}(value.first, min_node->content_->first)) {
       min_node = target;
     }
@@ -659,96 +659,96 @@ public:
     return pair<iterator, bool>(iterator(this, target), true);
   }
 
-  void erase_maintain(Node *target) {
+  void eraseMaintain(Node *target) {
     /*
       If remove a node on the leaf, adjustment of the tree falls in several
     cases:
-      1. The target is red, which means that we erase an item from a 2/3 item
+      1. The target is RED, which means that we erase an item from a 2/3 item
     B-Tree node. The only task is to throw it away and change the pointer.
-      2. The target is black, which means that we kill a B-Tree node. We need to
+      2. The target is BLACK, which means that we kill a B-Tree node. We need to
     analysis its brother B-Tree node so first we rotate to make its sibling a
-    black node that equivalent to a sibling in B-Tree instead of its parent.
-      2.1 The brother has at least one red child: make sure the child on the
-    opposite direction towards the target is red, then rotate to make the
+    BLACK node that equivalent to a sibling in B-Tree instead of its parent.
+      2.1 The brother has at least one RED child: make sure the child on the
+    opposite direction towards the target is RED, then rotate to make the
     sibling uplift and repaint.
-      2.2 The sibling has two black child: there is no abundant child of the
+      2.2 The sibling has two BLACK child: there is no abundant child of the
     sibling, so the only choice is to merge the node. Rotate the sibling
     upwards, repaint and adjust the tree recursively.
     */
     Node *parent = nullptr;
     Node *sibling = nullptr;
-    while (target != root_ && (target == nullptr || target->color_ == black)) {
+    while (target != root_ && (target == nullptr || target->color_ == BLACK)) {
       parent = target->parent_;
       if (parent->left_child_ == target) {
         sibling = parent->right_child_;
-        if (sibling->color_ == red) {
-          parent->color_ = red;
-          sibling->color_ = black;
-          sibling->left_rotation(parent, sibling);
+        if (sibling->color_ == RED) {
+          parent->color_ = RED;
+          sibling->color_ = BLACK;
+          sibling->leftRotation(parent, sibling);
           sibling = parent->right_child_;
         }
         if (sibling->right_child_ != nullptr &&
-            sibling->right_child_->color_ == red) {
+            sibling->right_child_->color_ == RED) {
           sibling->color_ = parent->color_;
-          parent->color_ = black;
-          sibling->right_child_->color_ = black;
-          sibling->left_rotation(parent, sibling);
+          parent->color_ = BLACK;
+          sibling->right_child_->color_ = BLACK;
+          sibling->leftRotation(parent, sibling);
           break;
         }
         if (sibling->left_child_ != nullptr &&
-            sibling->left_child_->color_ == red) {
-          sibling = sibling->right_rotation(sibling, sibling->left_child_);
+            sibling->left_child_->color_ == RED) {
+          sibling = sibling->rightRotation(sibling, sibling->left_child_);
           sibling->color_ = parent->color_;
-          parent->color_ = black;
-          sibling->right_child_->color_ = black;
-          sibling->left_rotation(parent, sibling);
+          parent->color_ = BLACK;
+          sibling->right_child_->color_ = BLACK;
+          sibling->leftRotation(parent, sibling);
           break;
         }
-        if (parent->color_ == red) {
-          parent->color_ = black;
-          sibling->color_ = red;
+        if (parent->color_ == RED) {
+          parent->color_ = BLACK;
+          sibling->color_ = RED;
           break;
         }
-        sibling->color_ = red;
+        sibling->color_ = RED;
         target = parent;
       } else {
         sibling = parent->left_child_;
-        if (sibling->color_ == red) {
-          parent->color_ = red;
-          sibling->color_ = black;
-          sibling->right_rotation(parent, sibling);
+        if (sibling->color_ == RED) {
+          parent->color_ = RED;
+          sibling->color_ = BLACK;
+          sibling->rightRotation(parent, sibling);
           sibling = parent->left_child_;
         }
         if (sibling->left_child_ != nullptr &&
-            sibling->left_child_->color_ == red) {
+            sibling->left_child_->color_ == RED) {
           sibling->color_ = parent->color_;
-          parent->color_ = black;
-          sibling->left_child_->color_ = black;
-          sibling->right_rotation(parent, sibling);
+          parent->color_ = BLACK;
+          sibling->left_child_->color_ = BLACK;
+          sibling->rightRotation(parent, sibling);
           break;
         }
         if (sibling->right_child_ != nullptr &&
-            sibling->right_child_->color_ == red) {
-          sibling = sibling->left_rotation(sibling, sibling->right_child_);
+            sibling->right_child_->color_ == RED) {
+          sibling = sibling->leftRotation(sibling, sibling->right_child_);
           sibling->color_ = parent->color_;
-          parent->color_ = black;
-          sibling->left_child_->color_ = black;
-          sibling->right_rotation(parent, sibling);
+          parent->color_ = BLACK;
+          sibling->left_child_->color_ = BLACK;
+          sibling->rightRotation(parent, sibling);
           break;
         }
-        if (parent->color_ == red) {
-          parent->color_ = black;
-          sibling->color_ = red;
+        if (parent->color_ == RED) {
+          parent->color_ = BLACK;
+          sibling->color_ = RED;
           break;
         }
-        sibling->color_ = red;
+        sibling->color_ = RED;
         target = parent;
       }
     }
     while (root_->parent_ != nullptr) {
       root_ = root_->parent_;
     }
-    root_->color_ = black;
+    root_->color_ = BLACK;
   }
 
   /**
@@ -796,7 +796,7 @@ public:
         target->swap(target, target->right_child_, sentinar_);
       }
     }
-    erase_maintain(target);
+    eraseMaintain(target);
     if (target->parent_->left_child_ == target) {
       target->parent_->left_child_ = nullptr;
     } else {
